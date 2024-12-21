@@ -4,6 +4,7 @@ using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEditorInternal;
 #endif
 
 namespace zombCondEvents
@@ -14,10 +15,16 @@ namespace zombCondEvents
         #region Editor
 #if UNITY_EDITOR
         [Header("Editor Only")]
+        [Tooltip("In edit mode if EditorTick() is called, all Condition components in self or any children will be added automatically")]
         [SerializeField] private bool autoAddConditionsFromChildren = true;
+        [Tooltip("In edit mode if EditorTick() is called, all Event components in self or any children will be added automatically")]
         [SerializeField] private bool autoAddEventsFromChildren = true;
+        [Tooltip("In editor if true and EditorTick() is called, all added Events and Conditions will be hidden in the inspector")]
+        [SerializeField] private bool hideConditionsAndEventsInInspector = false;
         private HashSet<int> condsAddedFromChildren = new();
         private HashSet<int> eventsAddedFromChildren = new();
+        private int prevCondEventCount = -1;
+        private bool prevHideFlag = false;
 
         /// <summary>
         /// Should be called in editor for autoAddConditionsFromChildren and autoAddEventsFromChildren to work (EDITOR ONLY)
@@ -25,6 +32,27 @@ namespace zombCondEvents
         /// <param name="thisObj">The gameobject the ConditionalEvent is attatched to</param>
         public void EditorTick(GameObject thisObj)
         {
+            //Hide stuff in inspector, must run at runtime to allow unhiding
+            int condEventCount = conditions.Count + events.Count;
+            if (prevCondEventCount != condEventCount || prevHideFlag != hideConditionsAndEventsInInspector)
+            {
+                prevCondEventCount = condEventCount;
+                prevHideFlag = hideConditionsAndEventsInInspector;
+                HideFlags hFlags = hideConditionsAndEventsInInspector == true ? HideFlags.HideInInspector : HideFlags.None;
+
+                foreach (Condition cond in conditions)
+                {
+                    cond.hideFlags = hFlags;
+                }
+
+                foreach (Event eevent in events)
+                {
+                    eevent.hideFlags = hFlags;
+                }
+
+                InternalEditorUtility.RepaintAllViews();
+            }
+
             if (Application.isPlaying == true) return;//For consistency with build
 
             bool changedAnything = false;

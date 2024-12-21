@@ -9,8 +9,10 @@ namespace zombCondEventsDemo
         [SerializeField] private zombCondEvents.ConditionalEvent condEvent = new();
 
 #if UNITY_EDITOR
-        private void OnDrawGizmos()
+        private void OnDrawGizmosSelected()
         {
+            //Using OnDrawGizmosSelected instead of OnDrawGizmos can improve editor performance if many ConditionalEvents exist in scene,
+            //at the cost of requiring the user to select the object for it to detect new components
             //Should be called in editor in edit mode. Calling condEvent.EditorTick is not required but recommended
             //The condEvent.EditorTick function will only exist in editor so #if UNITY_EDITOR is required
             condEvent.EditorTick(gameObject);      
