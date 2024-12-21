@@ -103,12 +103,30 @@ namespace zombCondEvents
 
         #region Api
 
+        public enum ActiveMode
+        {
+            everything = 0,
+            conditionsOnly = 1,
+            nothing = 2
+        }
+
+        private ActiveMode activeStatus = ActiveMode.everything;
+
+        /// <summary>
+        /// Controls if Conditions/Events can be checked/triggered or not (Is ActiveMode.everything by defualt)
+        /// </summary>
+        /// <param name="newActiveStatus">What can be checked/triggered? If conditionsOnly, conditions will still be checked but events will never be triggered</param>
+        public void SetActive(ActiveMode newActiveStatus)
+        {
+            activeStatus = newActiveStatus;
+        }
+
         public enum ResetType
         {
-            everything,
-            conditionalEventOnly,
-            conditionsOnly,
-            eventsOnly
+            everything = 0,
+            conditionalEventOnly = 1,
+            conditionsOnly = 2,
+            eventsOnly = 3
         }
 
         /// <summary>
@@ -393,7 +411,7 @@ namespace zombCondEvents
         /// </summary>
         /// <param name="trigger">The gameobject that caused you to call this function or the gameobject the script calling this function is attatched to</param>
         /// <param name="isPositive">Should the trigger be seen as positive? Example: if called from a collision event, enter could be positive and exit negative</param>
-        /// <returns>True if any event was triggered</returns>
+        /// <returns>True if any Event was triggered</returns>
         public bool UpdateConditionalEvents(GameObject trigger, bool isPositive)
         {
             bool requirementMet = CheckConditions(trigger, isPositive);
@@ -478,6 +496,7 @@ namespace zombCondEvents
         /// </summary>
         public bool CheckConditions(GameObject trigger, bool isPositive)
         {
+            if (activeStatus == ActiveMode.nothing) return false;
             isPositive = ChangePositivityIfShould(isPositive);
 
             //Check the conditions (Remember)
@@ -585,9 +604,11 @@ namespace zombCondEvents
         /// <summary>
         /// Tries to trigger all events. You normally wanna use UpdateConditionalEvents()
         /// </summary>
-        /// <returns>True if any event was triggered</returns>
+        /// <returns>True if any Event was triggered</returns>
         public bool TriggerEvents(GameObject trigger, bool isPositive, bool requirementMet)
         {
+            if (activeStatus != ActiveMode.everything) return false;
+
             //Change positivity
             isPositive = ChangePositivityIfShould(isPositive);
 

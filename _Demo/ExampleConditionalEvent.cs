@@ -25,6 +25,11 @@ namespace zombCondEventsDemo
             condEvent.Init(gameObject);
         }
 
+        private void OnEnable()
+        {
+            condEvent.SetActive(zombCondEvents.ConditionalEvent.ActiveMode.everything);
+        }
+
 #if ENABLE_LEGACY_INPUT_MANAGER//I think this is for the old input system
         private void Update()
         {
@@ -33,6 +38,11 @@ namespace zombCondEventsDemo
             condEvent.Reset(zombCondEvents.ConditionalEvent.ResetType.everything);
         }
 #endif
+
+        private void OnDisable()
+        {
+            condEvent.SetActive(zombCondEvents.ConditionalEvent.ActiveMode.nothing);
+        }
 
         private void OnDestroy()
         {
