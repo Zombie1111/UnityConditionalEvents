@@ -1,6 +1,8 @@
 //UnityConditionalEvents by David Westberg https://github.com/Zombie1111/UnityConditionalEvents
 using System.Collections.Generic;
 using UnityEngine;
+using System.Collections;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -15,9 +17,9 @@ namespace zombCondEvents
         #region Editor
 #if UNITY_EDITOR
         [Header("Editor Only")]
-        [Tooltip("In edit mode if EditorTick() is called, all Condition components in self or any children will be added automatically")]
+        [Tooltip("In edit mode if EditorTick() is called, all Condition components attatched to this gameobject will be added automatically")]
         [SerializeField] private bool autoAddConditionsFromChildren = true;
-        [Tooltip("In edit mode if EditorTick() is called, all Event components in self or any children will be added automatically")]
+        [Tooltip("In edit mode if EditorTick() is called, all Event components attatched to this gameobject will be added automatically")]
         [SerializeField] private bool autoAddEventsFromChildren = true;
         [Tooltip("In editor if true and EditorTick() is called, all added Events and Conditions will be hidden in the inspector")]
         [SerializeField] private bool hideConditionsAndEventsInInspector = false;
@@ -62,12 +64,12 @@ namespace zombCondEvents
                 bool mayRemovedAuto = condsAddedFromChildren.Contains(conditions.Count);
                 if (condsAddedFromChildren.Count == 0 || mayRemovedAuto == true) for (int i = 0; i < conditions.Count; i++)
                     {
-                         if (conditions[i] == null) continue;
-                         condsAddedFromChildren.Add(i);
+                        if (conditions[i] == null) continue;
+                        condsAddedFromChildren.Add(i);
                     }
 
                 if (RemoveAllNullConditions() == true) changedAnything = true;
-                if (AddAllConditionsInChildren(thisObj) == true)
+                if (AddAllConditionsInChildren(thisObj, true) == true)
                 {
                     changedAnything = true;
                     if (mayRemovedAuto == true) Debug.Log("Tried to remove an auto added Condition from " + thisObj.transform.name);
@@ -86,7 +88,7 @@ namespace zombCondEvents
                     }
 
                 if (RemoveAllNullEvents() == true) changedAnything = true;
-                if (AddAllEventsFromChildren(thisObj) == true)
+                if (AddAllEventsFromChildren(thisObj, true) == true)
                 {
                     changedAnything = true;
                     if (mayRemovedAuto == true) Debug.Log("Tried to remove an auto added Event from " + thisObj.transform.name);
@@ -119,6 +121,14 @@ namespace zombCondEvents
         public void SetActive(ActiveMode newActiveStatus)
         {
             activeStatus = newActiveStatus;
+        }
+
+        /// <summary>
+        /// Controls if Conditions/Events can be checked/triggered or not (Is true by defualt)
+        /// </summary>
+        public void SetActive(bool active)
+        {
+            SetActive(active == true ? ActiveMode.everything : ActiveMode.nothing);
         }
 
         public enum ResetType
@@ -248,11 +258,12 @@ namespace zombCondEvents
         /// <summary>
         /// Finds all Condition components in parentObj (Or any of its children) and tries to add them to the conditions list (Returns true if any Condition was added)
         /// </summary>
-        public bool AddAllConditionsInChildren(GameObject parentObj)
+        public bool AddAllConditionsInChildren(GameObject parentObj, bool exludeChildren = false)
         {
             bool addedAnything = false;
+            var conds = exludeChildren == false ? parentObj.GetComponentsInChildren<Condition>(true) : parentObj.GetComponents<Condition>();
 
-            foreach (Condition cond in parentObj.GetComponentsInChildren<Condition>(true))
+            foreach (Condition cond in conds)
             {
                 if (TryAddCondition(cond) == false) continue;
                 addedAnything = true;
@@ -269,11 +280,12 @@ namespace zombCondEvents
         /// <summary>
         /// Finds all Event components in parentObj (Or any of its children) and tries to add them to the events list (Returns true if any Event was added)
         /// </summary>
-        public bool AddAllEventsFromChildren(GameObject parentObj)
+        public bool AddAllEventsFromChildren(GameObject parentObj, bool exludeChildren = false)
         {
             bool addAnything = false;
+            var eevents = exludeChildren == false ? parentObj.GetComponentsInChildren<Event>(true) : parentObj.GetComponents<Event>();
 
-            foreach (Event eevent in parentObj.GetComponentsInChildren<Event>(true))
+            foreach (Event eevent in eevents)
             {
                 if (TryAddEvent(eevent) == false) continue;
                 addAnything = true;
@@ -353,6 +365,10 @@ namespace zombCondEvents
         /// The transform the ConditionalEvent is attatched to
         /// </summary>
         [System.NonSerialized] public Transform transform = null;
+        /// <summary>
+        /// The MonoBehaviour the ConditionalEvent is attatched to
+        /// </summary>
+        [System.NonSerialized] public MonoBehaviour script = null;
 
         private bool isInitilized = false;
 
@@ -360,7 +376,8 @@ namespace zombCondEvents
         /// At runtime, this should be called before any other function
         /// </summary>
         /// <param name="thisObj">The gameobject the ConditionalEvent is attatched to</param>
-        public void Init(GameObject thisObj)
+        /// <param name="thisScript">The MonoBehaviour the ConditionalEvent is attatched to, only needed if triggerDelay > 0.0f</param>
+        public void Init(GameObject thisObj, MonoBehaviour thisScript = null)
         {
             if (isInitilized == true) return;
             isInitilized = true;
@@ -368,6 +385,9 @@ namespace zombCondEvents
             //Events and conditions from children are added in EditorTick. Since the lists are serialized they will be saved so no need to get them in Init()
             gameobject = thisObj;//Not used internally but useful for Conditions/Events so they can access the gameobject/transform though condEvent.gameobject
             transform = thisObj.transform;
+            script = thisScript;
+            if (triggerDelay > 0.0f && script == null)
+                Debug.LogError(transform.name + " triggerDelay wont work because thisScript was not assigned in Init(), pass a valid script or set triggerDelay to -1.0f");
 
             foreach (Condition cond in conditions)
             {
@@ -411,7 +431,7 @@ namespace zombCondEvents
         /// </summary>
         /// <param name="trigger">The gameobject that caused you to call this function or the gameobject the script calling this function is attatched to</param>
         /// <param name="isPositive">Should the trigger be seen as positive? Example: if called from a collision event, enter could be positive and exit negative</param>
-        /// <returns>True if any Event was triggered</returns>
+        /// <returns>True if any Event was triggered (Can still return true if no event exist)</returns>
         public bool UpdateConditionalEvents(GameObject trigger, bool isPositive)
         {
             bool requirementMet = CheckConditions(trigger, isPositive);
@@ -482,7 +502,8 @@ namespace zombCondEvents
         [Tooltip("If the requirement must be met for any Event to trigger. If ifPositive, the requirement must only be met if positive input" +
             "(Checked after requirementReversion)")]
         [SerializeField] private RequirementNeeded requirementNeeded = RequirementNeeded.always;
-        [Tooltip("What condition(s) needs to be true for the requirement to be met")]
+        [Tooltip("What condition(s) needs to be true for the requirement to be met. If allOnce/anyOnce," +
+            " when a condition returns true it will stop being checked and count as true until Reset() is called")]
         [SerializeField] private RequiredConditions requiredConditions = RequiredConditions.all;
         [Tooltip("If false should mean true. If ifNegative, requirement is met will be reversed if negative input (bool = !bool, applied after requiredConditions)")]
         [SerializeField] private RequirementReversion requirementReversion = RequirementReversion.never;
@@ -492,11 +513,12 @@ namespace zombCondEvents
         private bool[] conditionStates = new bool[0];
 
         /// <summary>
-        /// Returns true if the requirement is met. You normally wanna use UpdateConditionalEvents()
+        /// Returns true if the requirement is met, always true if no condition exist. You normally wanna use UpdateConditionalEvents()
         /// </summary>
         public bool CheckConditions(GameObject trigger, bool isPositive)
         {
             if (activeStatus == ActiveMode.nothing) return false;
+            if (conditions.Count == 0) return true;
             isPositive = ChangePositivityIfShould(isPositive);
 
             //Check the conditions (Remember)
@@ -551,7 +573,7 @@ namespace zombCondEvents
                         if (isPositive == false) return !rMet;
                         return rMet;
                     default:
-                    break;
+                        break;
                 }
 
                 if (isPositive == true) return !rMet;
@@ -595,6 +617,8 @@ namespace zombCondEvents
         [SerializeField] private PositivityFromRequirement positivityFromRequirment = PositivityFromRequirement.none;
         [Tooltip("If Events should only be triggered if something has changed or always trigger, checked after positivityFromRequirment")]
         [SerializeField] private TriggerBehaviour triggerBehaviour = TriggerBehaviour.always;
+        [Tooltip("If > 0.0f, the events will be triggered after X seconds. Delay only affects event triggering, all other checks will always be done immediately")]
+        [SerializeField] private float triggerDelay = -1.0f;
         [Tooltip("The events to trigger, triggered very last after all other checks")]
         [SerializeField] private List<Event> events = new();
         private bool hasTriggeredOnce = false;
@@ -604,7 +628,7 @@ namespace zombCondEvents
         /// <summary>
         /// Tries to trigger all events. You normally wanna use UpdateConditionalEvents()
         /// </summary>
-        /// <returns>True if any Event was triggered</returns>
+        /// <returns>True if any Event was triggered (Can still return true if no event exist)</returns>
         public bool TriggerEvents(GameObject trigger, bool isPositive, bool requirementMet)
         {
             if (activeStatus != ActiveMode.everything) return false;
@@ -642,19 +666,42 @@ namespace zombCondEvents
                     break;
             }
 
-            SkipCheckTriggerBehaviour:;
+        SkipCheckTriggerBehaviour:;
 
             hasTriggeredOnce = true;
             lastPositivity = isPositive;
             lastRequirementMet = requirementMet;
 
+            if (triggerDelay > 0.0f && script != null)
+            {
+                triggerDelayCoroutine = script.StartCoroutine(DoTriggerEventsDelay(trigger, isPositive, requirementMet));
+                return true;
+            }
+
+            DoTriggerEvents(trigger, isPositive, requirementMet);
+            return true;//Will return true if no event exist, I think this is the expected behaviour?
+        }
+
+        /// <summary>
+        /// The most recent active Coroutine used by triggerDelay. If != null, a Event trigger is currently pending
+        /// </summary>
+        [System.NonSerialized] public Coroutine triggerDelayCoroutine = null;
+
+        private IEnumerator DoTriggerEventsDelay(GameObject trigger, bool isPositive, bool requirementMet)
+        {
+            yield return new WaitForSeconds(triggerDelay);
+
+            DoTriggerEvents(trigger, isPositive, requirementMet);
+            triggerDelayCoroutine = null;
+        }
+
+        private void DoTriggerEvents(GameObject trigger, bool isPositive, bool requirementMet)
+        {
             foreach (Event eevent in events)
             {
                 if (eevent == null) continue;//If no events are assigned it would still return true, not a problem?
                 eevent.TriggerEvent(this, trigger, isPositive, requirementMet);
             }
-
-            return true;
         }
 
         #endregion Events

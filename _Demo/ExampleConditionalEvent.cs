@@ -22,7 +22,7 @@ namespace zombCondEventsDemo
         private void Awake()
         {
             //Tells all Events + Conditions to init + sets up ConditionalEvent transform/gameobject referemce
-            condEvent.Init(gameObject);
+            condEvent.Init(gameObject, this);
         }
 
         private void OnEnable()
