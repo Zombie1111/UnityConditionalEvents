@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Collections;
+using System.ComponentModel;
+
 
 
 #if UNITY_EDITOR
@@ -44,11 +46,13 @@ namespace zombCondEvents
 
                 foreach (Condition cond in conditions)
                 {
+                    if (cond == null) continue;
                     cond.hideFlags = hFlags;
                 }
 
                 foreach (Event eevent in events)
                 {
+                    if (eevent == null) continue;
                     eevent.hideFlags = hFlags;
                 }
 
@@ -684,6 +688,7 @@ namespace zombCondEvents
 
         /// <summary>
         /// The most recent active Coroutine used by triggerDelay. If != null, a Event trigger is currently pending
+        /// (The Coroutine will always be running on the conditionalEvent.script monobehaviour)
         /// </summary>
         [System.NonSerialized] public Coroutine triggerDelayCoroutine = null;
 
@@ -706,4 +711,29 @@ namespace zombCondEvents
 
         #endregion Events
     }
+
+    #region Extensions
+    public static class CondEventExtensions
+    {
+        /// <summary>
+        /// Can be used when writing custom Events/Conditions, not used internally
+        /// </summary>
+        public enum PositivityStatus
+        {
+            any = 0,
+            positive = 1,
+            negative = 2,
+        }
+
+        /// <summary>
+        /// Returns true if this PositivityStatus matches positivity
+        /// </summary>
+        public static bool MatchesPositivity(this PositivityStatus pStatus, bool positivity)
+        {
+            if (pStatus == PositivityStatus.positive && positivity == false) return false;
+            if (pStatus == PositivityStatus.negative && positivity == true) return false;
+            return true;
+        }
+    }
+    #endregion Extensions
 }
