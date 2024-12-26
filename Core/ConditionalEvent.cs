@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Collections;
 using System.ComponentModel;
+using NUnit.Framework.Interfaces;
+
 
 
 
@@ -169,6 +171,9 @@ namespace zombCondEvents
 
             void ResetConditionalEvent()
             {
+                lastPositivity = false;
+                lastRequirementMet = false;
+                hasTriggeredOnce = false;
                 conditionStates = new bool[conditions.Count];
             }
 
@@ -355,6 +360,30 @@ namespace zombCondEvents
         public List<Event> GetEvents()
         {
             return events;
+        }
+
+        /// <summary>
+        /// Clears all conditions, events and other
+        /// </summary>
+        public void Clear()
+        {
+#if UNITY_EDITOR
+            if (Application.isPlaying == false)
+            {
+                if (events.Count > 0 || conditions.Count > 0) Debug.Log(transform.name + " ConditionalEvent was cleared");
+            }
+#endif
+
+            events.Clear();
+            conditions.Clear();
+            conditionStates = new bool[0];
+            hasTriggeredOnce = false;
+            lastPositivity = false;
+            lastRequirementMet = false;
+            gameobject = null;
+            transform = null;
+            script = null;
+            isInitilized = false;
         }
 
         #endregion Api
