@@ -36,10 +36,12 @@ namespace zombCondEvents
         /// Should be called in editor for autoAddConditionsFromChildren and autoAddEventsFromChildren to work (EDITOR ONLY)
         /// </summary>
         /// <param name="thisObj">The gameobject the ConditionalEvent is attatched to</param>
-        public void EditorTick(GameObject thisObj)
+        /// <param name="thisScript">Only used to prevent auto adding itself as a Condition/Event if a Condition/Event has a ConditionalEvent</param>
+        public void EditorTick(GameObject thisObj, MonoBehaviour thisScript = null)
         {
             //Hide stuff in inspector, must run at runtime to allow unhiding
             int condEventCount = conditions.Count + events.Count;
+
             if (prevCondEventCount != condEventCount || prevHideFlag != hideConditionsAndEventsInInspector)
             {
                 prevCondEventCount = condEventCount;
@@ -63,7 +65,9 @@ namespace zombCondEvents
 
             if (Application.isPlaying == true) return;//For consistency with build
 
+            script = thisScript;
             bool changedAnything = false;
+
             //The auto add stuff feels a bit overcomplicated but since its editor only its not worth rewriting it
             if (autoAddConditionsFromChildren == true)
             {
@@ -102,6 +106,8 @@ namespace zombCondEvents
                 else if (mayRemovedAuto == true) eventsAddedFromChildren.Clear();
             }
             else eventsAddedFromChildren.Clear();
+
+            script = null;//For consistency with build, must be removed if Application.isPlaying is removed
 
             if (changedAnything == false) return;
             EditorUtility.SetDirty(thisObj);
@@ -274,6 +280,8 @@ namespace zombCondEvents
 
             foreach (Condition cond in conds)
             {
+                if (script == cond) continue;//Prevent adding itself
+
                 if (TryAddCondition(cond) == false) continue;
                 addedAnything = true;
 
@@ -296,6 +304,8 @@ namespace zombCondEvents
 
             foreach (Event eevent in eevents)
             {
+                if (script == eevent) continue;//Prevent adding itself
+
                 if (TryAddEvent(eevent) == false) continue;
                 addAnything = true;
 
