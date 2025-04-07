@@ -1,5 +1,5 @@
 
-<h1 align="center">Unity Conditional Events By David Westberg</h1>
+<h1+>Unity Conditional Events</h1>
 
 ## Overview
 Like UnityEvents but a lot more customizable and scriptable.
